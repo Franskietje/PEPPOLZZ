@@ -1,0 +1,43 @@
+### Health check
+GET http://127.0.0.1:8000/api/health
+
+
+### Get contacts
+GET http://127.0.0.1:8000/api/contacts
+
+
+### Get products
+GET http://127.0.0.1:8000/api/products
+
+
+### Create invoice
+POST http://127.0.0.1:8000/api/invoices
+Content-Type: application/json
+
+{
+  "company_id": 1,
+  "customer_id": 1,
+  "issue_date": "2026-05-13",
+  "due_date": "2026-06-12",
+  "currency": "EUR",
+  "notes": "First test invoice"
+}
+
+
+### Add line to invoice
+POST http://127.0.0.1:8000/api/invoices/1/lines
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "quantity": 2
+}
+
+
+### View invoice
+GET http://127.0.0.1:8000/api/invoices/1
+
+
+### Recalculate invoice
+POST http://127.0.0.1:8000/api/invoices/1/recalculate
+Content-Type: application/json
