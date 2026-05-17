@@ -100,12 +100,37 @@ php artisan queue:work --tries=3 --timeout=120
 
 ## Optional: if receipts or generated files must persist
 
-If this app stores user uploads or generated files long-term, configure cloud object storage and set:
+
+### Persistent receipt uploads (S3 setup required)
+
+If you want uploaded receipts and files to persist across deployments and server restarts, you must use S3 (or compatible) storage:
+
+1. Create an S3 bucket (or use a compatible provider like DigitalOcean Spaces, Wasabi, etc).
+2. In your `.env` file, set:
 
 ```env
 FILESYSTEM_DISK=s3
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_DEFAULT_REGION=...
-AWS_BUCKET=...
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_DEFAULT_REGION=your-region
+AWS_BUCKET=your-bucket-name
+AWS_URL=https://your-bucket-url (optional, for custom domains)
 ```
+
+3. In `config/filesystems.php`, ensure the `s3` disk is configured (Laravel default is fine for AWS):
+
+```php
+		's3' => [
+			'driver' => 's3',
+			'key' => env('AWS_ACCESS_KEY_ID'),
+			'secret' => env('AWS_SECRET_ACCESS_KEY'),
+			'region' => env('AWS_DEFAULT_REGION'),
+			'bucket' => env('AWS_BUCKET'),
+			'url' => env('AWS_URL'),
+			'endpoint' => env('AWS_ENDPOINT'),
+		],
+```
+
+4. Deploy and test uploading/previewing receipts. All new uploads will be stored on S3.
+
+5. (Optional) Migrate existing files from local storage to S3 if needed.

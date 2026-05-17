@@ -43,7 +43,8 @@ class ReceiptController extends Controller
         ]);
 
         $file = $request->file('receipt_file');
-        $path = $file->store('receipts', 'local');
+        // Store on S3 instead of local
+        $path = $file->store('receipts', 's3');
 
         $receipt = Receipt::create([
             'supplier_id' => $data['supplier_id'] ?? null,
@@ -169,7 +170,7 @@ class ReceiptController extends Controller
     public function destroy(Receipt $receipt): RedirectResponse
     {
         if ($receipt->original_file_path) {
-            Storage::disk('local')->delete($receipt->original_file_path);
+            Storage::disk('s3')->delete($receipt->original_file_path);
         }
 
         $receipt->delete();
@@ -179,19 +180,23 @@ class ReceiptController extends Controller
 
     public function viewFile(Receipt $receipt)
     {
-        $path = Storage::disk('local')->path($receipt->original_file_path);
-
-        if (! file_exists($path)) {
+        // Generate a temporary URL for S3 file viewing
+        if (!Storage::disk('s3')->exists($receipt->original_file_path)) {
             abort(404);
         }
-
-        return response()->file($path, [
-            'Content-Type' => $receipt->mime_type ?: 'application/octet-stream',
-        ]);
+        $url = Storage::disk('s3')->temporaryUrl(
+            $receipt->original_file_path,
+            now()->addMinutes(10),
+            [
+                'ResponseContentType' => $receipt->mime_type ?: 'application/octet-stream',
+                'ResponseContentDisposition' => 'inline; filename="' . ($receipt->original_file_name ?: basename($receipt->original_file_path)) . '"',
+            ]
+        );
+        return redirect($url);
     }
     public function download(Receipt $receipt): StreamedResponse
     {
-        return Storage::disk('local')->download(
+        return Storage::disk('s3')->download(
             $receipt->original_file_path,
             $receipt->original_file_name ?: basename($receipt->original_file_path)
         );
