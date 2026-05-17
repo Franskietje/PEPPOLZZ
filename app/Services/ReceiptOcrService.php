@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Receipt;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -23,7 +24,18 @@ class ReceiptOcrService
             throw new RuntimeException('OCR currently supports image files only. Upload JPG or PNG for now.');
         }
 
-        $text = $this->runTesseract($absolutePath);
+        $driver = strtolower((string) env('OCR_DRIVER', 'tesseract'));
+
+        if ($driver === 'disabled') {
+            throw new RuntimeException('OCR is disabled in this environment.');
+        }
+
+        $text = match ($driver) {
+            'ocr_space' => $this->runOcrSpace($absolutePath),
+            'tesseract' => $this->runTesseract($absolutePath),
+            default => throw new RuntimeException('Unsupported OCR_DRIVER. Use tesseract, ocr_space, or disabled.'),
+        };
+
         $guesses = $this->extractGuesses($text);
 
         $receipt->update([
@@ -55,10 +67,62 @@ class ReceiptOcrService
         $process->run();
 
         if (! $process->isSuccessful()) {
+            $output = trim($process->getErrorOutput().' '.$process->getOutput());
+            $lower = strtolower($output);
+
+            if ($process->getExitCode() === 127 || str_contains($lower, 'not found')) {
+                throw new RuntimeException('Tesseract is not available on this server. Set OCR_DRIVER=ocr_space and OCR_SPACE_API_KEY in production, or install tesseract.');
+            }
+
             throw new RuntimeException(trim($process->getErrorOutput()) ?: 'Tesseract OCR failed.');
         }
 
         return trim($process->getOutput());
+    }
+
+    private function runOcrSpace(string $absolutePath): string
+    {
+        $apiKey = (string) config('services.ocr_space.api_key');
+
+        if ($apiKey === '') {
+            throw new RuntimeException('OCR_SPACE_API_KEY is missing.');
+        }
+
+        $endpoint = (string) config('services.ocr_space.endpoint', 'https://api.ocr.space/parse/image');
+        $language = (string) config('services.ocr_space.language', 'eng');
+
+        $response = Http::timeout(60)
+            ->attach('file', fopen($absolutePath, 'r'), basename($absolutePath))
+            ->post($endpoint, [
+                'apikey' => $apiKey,
+                'language' => $language,
+                'isOverlayRequired' => 'false',
+                'OCREngine' => '2',
+            ]);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('OCR provider request failed with status '.$response->status().'.');
+        }
+
+        $payload = $response->json();
+
+        if (! is_array($payload)) {
+            throw new RuntimeException('Invalid OCR provider response.');
+        }
+
+        if (($payload['IsErroredOnProcessing'] ?? false) === true) {
+            $errors = $payload['ErrorMessage'] ?? 'OCR provider returned an error.';
+            $message = is_array($errors) ? implode(' ', $errors) : (string) $errors;
+            throw new RuntimeException($message);
+        }
+
+        $parsed = $payload['ParsedResults'][0]['ParsedText'] ?? null;
+
+        if (! is_string($parsed) || trim($parsed) === '') {
+            throw new RuntimeException('No OCR text detected in the image.');
+        }
+
+        return trim($parsed);
     }
 
     private function resolveTesseractBinary(): string
