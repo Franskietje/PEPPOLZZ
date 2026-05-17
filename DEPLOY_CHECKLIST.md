@@ -44,6 +44,7 @@ LOG_LEVEL=warning
 OCR_DRIVER=ocr_space
 OCR_SPACE_API_KEY=<your-ocr-space-api-key>
 OCR_SPACE_LANGUAGE=eng
+OCR_SPACE_MAX_FILE_SIZE=1000000
 ```
 
 Notes:
@@ -51,6 +52,7 @@ Notes:
 - Do not use sqlite in production for cloud deployments.
 - If you will send emails, configure MAIL_* variables for your SMTP provider.
 - For OCR in Laravel Cloud, prefer OCR.space via `OCR_DRIVER=ocr_space`.
+- OCR.space free tier allows about 1 MB per file. Use smaller receipt images or a PRO key for larger files.
 
 ## 4) Run first-time production commands
 

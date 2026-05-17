@@ -90,17 +90,40 @@ class ReceiptOcrService
 
         $endpoint = (string) config('services.ocr_space.endpoint', 'https://api.ocr.space/parse/image');
         $language = (string) config('services.ocr_space.language', 'eng');
+        $maxBytes = (int) env('OCR_SPACE_MAX_FILE_SIZE', 1000000);
 
-        $response = Http::timeout(60)
-            ->attach('file', fopen($absolutePath, 'r'), basename($absolutePath))
-            ->post($endpoint, [
-                'apikey' => $apiKey,
-                'language' => $language,
-                'isOverlayRequired' => 'false',
-                'OCREngine' => '2',
-            ]);
+        [$uploadPath, $cleanup] = $this->prepareFileForOcrSpace($absolutePath, $maxBytes);
+        $handle = fopen($uploadPath, 'r');
+
+        if ($handle === false) {
+            if (is_callable($cleanup)) {
+                $cleanup();
+            }
+
+            throw new RuntimeException('Unable to read file for OCR upload.');
+        }
+
+        try {
+            $response = Http::timeout(60)
+                ->attach('file', $handle, basename($uploadPath))
+                ->post($endpoint, [
+                    'apikey' => $apiKey,
+                    'language' => $language,
+                    'isOverlayRequired' => 'false',
+                    'OCREngine' => '2',
+                ]);
+        } finally {
+            fclose($handle);
+            if (is_callable($cleanup)) {
+                $cleanup();
+            }
+        }
 
         if (! $response->successful()) {
+            if ($response->status() === 413) {
+                throw new RuntimeException('OCR provider rejected the image as too large. The free OCR.space tier allows files up to 1 MB. Upload a smaller image, or use a PRO OCR.space key.');
+            }
+
             throw new RuntimeException('OCR provider request failed with status '.$response->status().'.');
         }
 
@@ -123,6 +146,87 @@ class ReceiptOcrService
         }
 
         return trim($parsed);
+    }
+
+    private function prepareFileForOcrSpace(string $absolutePath, int $maxBytes): array
+    {
+        $currentSize = @filesize($absolutePath);
+
+        if ($currentSize !== false && $currentSize <= $maxBytes) {
+            return [$absolutePath, null];
+        }
+
+        $mimeType = (string) @mime_content_type($absolutePath);
+        if (! str_starts_with($mimeType, 'image/')) {
+            throw new RuntimeException('This file is too large for OCR.space free API. For PDFs or large files, use a PRO OCR.space key or upload a smaller image.');
+        }
+
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagejpeg')) {
+            throw new RuntimeException('Image is too large for OCR.space free API and image compression is unavailable on this server. Upload a smaller image or use a PRO OCR.space key.');
+        }
+
+        $raw = @file_get_contents($absolutePath);
+        if ($raw === false) {
+            throw new RuntimeException('Unable to read image for OCR preprocessing.');
+        }
+
+        $source = @imagecreatefromstring($raw);
+        if ($source === false) {
+            throw new RuntimeException('Unable to prepare image for OCR.');
+        }
+
+        $originalWidth = imagesx($source);
+        $originalHeight = imagesy($source);
+        $tempPath = tempnam(sys_get_temp_dir(), 'ocr_');
+
+        if ($tempPath === false) {
+            imagedestroy($source);
+            throw new RuntimeException('Unable to allocate temporary OCR file.');
+        }
+
+        $quality = 85;
+        $scale = 1.0;
+        $compressed = false;
+
+        for ($attempt = 0; $attempt < 8; $attempt++) {
+            $targetWidth = max(1, (int) round($originalWidth * $scale));
+            $targetHeight = max(1, (int) round($originalHeight * $scale));
+
+            $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
+            if ($canvas === false) {
+                continue;
+            }
+
+            imagecopyresampled($canvas, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $originalWidth, $originalHeight);
+            imagejpeg($canvas, $tempPath, $quality);
+            imagedestroy($canvas);
+
+            $newSize = @filesize($tempPath);
+            if ($newSize !== false && $newSize <= $maxBytes) {
+                $compressed = true;
+                break;
+            }
+
+            if ($quality > 45) {
+                $quality -= 10;
+            } else {
+                $scale *= 0.8;
+            }
+        }
+
+        imagedestroy($source);
+
+        if (! $compressed) {
+            @unlink($tempPath);
+            throw new RuntimeException('Receipt image is too large for OCR.space free API (1 MB limit). Please upload a smaller image or use a PRO OCR.space key.');
+        }
+
+        return [
+            $tempPath,
+            static function () use ($tempPath): void {
+                @unlink($tempPath);
+            },
+        ];
     }
 
     private function resolveTesseractBinary(): string
