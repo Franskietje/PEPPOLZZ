@@ -166,6 +166,17 @@ class ReceiptController extends Controller
         return redirect()->route('web.receipts.show', $receipt)->with('success', 'Receipt rejected.');
     }
 
+    public function destroy(Receipt $receipt): RedirectResponse
+    {
+        if ($receipt->original_file_path) {
+            Storage::disk('local')->delete($receipt->original_file_path);
+        }
+
+        $receipt->delete();
+
+        return redirect()->route('web.receipts.index')->with('success', 'Receipt deleted.');
+    }
+
     public function viewFile(Receipt $receipt)
     {
         $path = Storage::disk('local')->path($receipt->original_file_path);

@@ -14,6 +14,11 @@
                 <button type="submit" class="secondary">Mark paid</button>
             </form>
         @endif
+        <form method="post" action="{{ route('web.invoices.destroy', $invoice) }}" onsubmit="return confirm('Delete this invoice permanently?')">
+            @csrf
+            @method('DELETE')
+            <button class="danger" type="submit">Delete</button>
+        </form>
     </div>
     <p class="muted">
         {{ $invoice->company?->legal_name }} → {{ $invoice->customer?->name }}<br>

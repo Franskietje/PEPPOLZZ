@@ -127,6 +127,17 @@ class IncomingInvoiceController extends Controller
         return redirect()->route('web.incoming-invoices.show', $incomingInvoice)->with('success', 'Incoming invoice rejected.');
     }
 
+    public function destroy(IncomingInvoice $incomingInvoice): RedirectResponse
+    {
+        if ($incomingInvoice->original_file_path) {
+            Storage::disk('local')->delete($incomingInvoice->original_file_path);
+        }
+
+        $incomingInvoice->delete();
+
+        return redirect()->route('web.incoming-invoices.index')->with('success', 'Incoming invoice deleted.');
+    }
+
     public function download(IncomingInvoice $incomingInvoice): StreamedResponse
     {
         return Storage::disk('local')->download(

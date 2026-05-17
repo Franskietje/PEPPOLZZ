@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class InvoiceController extends Controller
@@ -141,5 +142,18 @@ class InvoiceController extends Controller
         $invoice->update(['status' => 'paid']);
 
         return redirect()->route('web.invoices.show', $invoice)->with('success', 'Invoice marked as paid.');
+    }
+
+    public function destroy(Invoice $invoice): RedirectResponse
+    {
+        foreach ([$invoice->xml_storage_path, $invoice->pdf_storage_path] as $path) {
+            if ($path) {
+                Storage::disk('local')->delete($path);
+            }
+        }
+
+        $invoice->delete();
+
+        return redirect()->route('web.invoices.index')->with('success', 'Invoice deleted.');
     }
 }

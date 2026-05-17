@@ -15,6 +15,11 @@
                 <button class="danger" type="submit">Reject</button>
             </form>
         @endif
+        <form method="post" action="{{ route('web.incoming-invoices.destroy', $incomingInvoice) }}" onsubmit="return confirm('Delete this incoming invoice permanently?')">
+            @csrf
+            @method('DELETE')
+            <button class="danger" type="submit">Delete</button>
+        </form>
     </div>
     <p class="muted">Status: <span class="status-badge status-{{ $incomingInvoice->status }}">{{ str_replace('_', ' ', $incomingInvoice->status) }}</span> · File: {{ $incomingInvoice->original_file_name }}</p>
 </div>

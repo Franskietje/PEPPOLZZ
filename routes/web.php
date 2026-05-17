@@ -25,6 +25,7 @@ Route::post('/receipts', [ReceiptController::class, 'store'])->name('web.receipt
 Route::get('/receipts/{receipt}/view', [ReceiptController::class, 'viewFile'])->name('web.receipts.view');
 Route::get('/receipts/{receipt}', [ReceiptController::class, 'show'])->name('web.receipts.show');
 Route::put('/receipts/{receipt}', [ReceiptController::class, 'update'])->name('web.receipts.update');
+Route::delete('/receipts/{receipt}', [ReceiptController::class, 'destroy'])->name('web.receipts.destroy');
 Route::get('/receipts/{receipt}/download', [ReceiptController::class, 'download'])->name('web.receipts.download');
 Route::post('/receipts/{receipt}/ocr', [ReceiptController::class, 'runOcr'])->name('web.receipts.ocr');
 Route::post('/receipts/{receipt}/apply-ocr', [ReceiptController::class, 'applyOcrSuggestions'])->name('web.receipts.apply-ocr');
@@ -40,6 +41,7 @@ Route::get('/incoming-invoices/create', [IncomingInvoiceController::class, 'crea
 Route::post('/incoming-invoices', [IncomingInvoiceController::class, 'store'])->name('web.incoming-invoices.store');
 Route::get('/incoming-invoices/{incomingInvoice}', [IncomingInvoiceController::class, 'show'])->name('web.incoming-invoices.show');
 Route::put('/incoming-invoices/{incomingInvoice}', [IncomingInvoiceController::class, 'update'])->name('web.incoming-invoices.update');
+Route::delete('/incoming-invoices/{incomingInvoice}', [IncomingInvoiceController::class, 'destroy'])->name('web.incoming-invoices.destroy');
 Route::get('/incoming-invoices/{incomingInvoice}/download', [IncomingInvoiceController::class, 'download'])->name('web.incoming-invoices.download');
 Route::post('/incoming-invoices/{incomingInvoice}/approve', [IncomingInvoiceController::class, 'approve'])->name('web.incoming-invoices.approve');
 Route::post('/incoming-invoices/{incomingInvoice}/reject', [IncomingInvoiceController::class, 'reject'])->name('web.incoming-invoices.reject');
@@ -49,6 +51,7 @@ Route::post('/invoices', [InvoiceController::class, 'store'])->name('web.invoice
 Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('web.invoices.pdf');
 Route::get('/invoices/{invoice}/ubl', [InvoiceController::class, 'downloadUbl'])->name('web.invoices.ubl');
 Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('web.invoices.show');
+Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('web.invoices.destroy');
 Route::post('/invoices/{invoice}/lines', [InvoiceController::class, 'addLine'])->name('web.invoices.lines.add');
 Route::delete('/invoices/{invoice}/lines/{line}', [InvoiceController::class, 'deleteLine'])->name('web.invoices.lines.delete');
 Route::post('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->name('web.invoices.mark-paid');

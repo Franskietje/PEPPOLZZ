@@ -26,6 +26,11 @@
                 <button class="danger" type="submit">Reject</button>
             </form>
         @endif
+        <form method="post" action="{{ route('web.receipts.destroy', $receipt) }}" onsubmit="return confirm('Delete this receipt permanently?')">
+            @csrf
+            @method('DELETE')
+            <button class="danger" type="submit">Delete</button>
+        </form>
     </div>
     <p class="muted">
         Status: <span class="status-badge status-{{ $receipt->status }}">{{ str_replace('_', ' ', $receipt->status) }}</span> · File: {{ $receipt->original_file_name }}
