@@ -12,40 +12,64 @@ class ReceiptOcrService
 {
     public function process(Receipt $receipt): Receipt
     {
-        $absolutePath = Storage::disk('local')->path($receipt->original_file_path);
-
-        if (! file_exists($absolutePath)) {
-            throw new RuntimeException('Receipt file not found.');
+        // Get the file path - handle both S3 and local storage
+        $disk = strtolower((string) env('FILESYSTEM_DISK', 'local'));
+        
+        if ($disk === 's3') {
+            // For S3, download to temp location
+            if (!Storage::disk('s3')->exists($receipt->original_file_path)) {
+                throw new RuntimeException('Receipt file not found.');
+            }
+            $tempPath = tempnam(sys_get_temp_dir(), 'receipt_ocr_');
+            file_put_contents($tempPath, Storage::disk('s3')->get($receipt->original_file_path));
+            $absolutePath = $tempPath;
+            $cleanup = static function () use ($tempPath): void {
+                @unlink($tempPath);
+            };
+        } else {
+            // For local storage
+            $absolutePath = Storage::disk('local')->path($receipt->original_file_path);
+            if (! file_exists($absolutePath)) {
+                throw new RuntimeException('Receipt file not found.');
+            }
+            $cleanup = null;
         }
 
-        $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+        try {
+            $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
 
-        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'tif', 'tiff', 'webp'], true)) {
-            throw new RuntimeException('OCR currently supports image files only. Upload JPG or PNG for now.');
+            if (! in_array($extension, ['jpg', 'jpeg', 'png', 'tif', 'tiff', 'webp'], true)) {
+                throw new RuntimeException('OCR currently supports image files only. Upload JPG or PNG for now.');
+            }
+
+            $driver = strtolower((string) env('OCR_DRIVER', 'tesseract'));
+
+            if ($driver === 'disabled') {
+                throw new RuntimeException('OCR is disabled in this environment.');
+            }
+
+            $text = match ($driver) {
+                'ocr_space' => $this->runOcrSpace($absolutePath),
+                'tesseract' => $this->runTesseract($absolutePath),
+                default => throw new RuntimeException('Unsupported OCR_DRIVER. Use tesseract, ocr_space, or disabled.'),
+            };
+
+            $guesses = $this->extractGuesses($text);
+
+            $receipt->update([
+                'ocr_status' => 'processed',
+                'ocr_text' => $text,
+                'ocr_data' => $guesses,
+                'ocr_processed_at' => now(),
+            ]);
+
+            return $receipt->refresh();
+        } finally {
+            // Clean up temp file if it was S3
+            if (is_callable($cleanup)) {
+                $cleanup();
+            }
         }
-
-        $driver = strtolower((string) env('OCR_DRIVER', 'tesseract'));
-
-        if ($driver === 'disabled') {
-            throw new RuntimeException('OCR is disabled in this environment.');
-        }
-
-        $text = match ($driver) {
-            'ocr_space' => $this->runOcrSpace($absolutePath),
-            'tesseract' => $this->runTesseract($absolutePath),
-            default => throw new RuntimeException('Unsupported OCR_DRIVER. Use tesseract, ocr_space, or disabled.'),
-        };
-
-        $guesses = $this->extractGuesses($text);
-
-        $receipt->update([
-            'ocr_status' => 'processed',
-            'ocr_text' => $text,
-            'ocr_data' => $guesses,
-            'ocr_processed_at' => now(),
-        ]);
-
-        return $receipt->refresh();
     }
 
     private function runTesseract(string $absolutePath): string
