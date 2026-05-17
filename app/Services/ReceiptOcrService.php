@@ -93,6 +93,8 @@ class ReceiptOcrService
         $maxBytes = (int) env('OCR_SPACE_MAX_FILE_SIZE', 1000000);
 
         [$uploadPath, $cleanup] = $this->prepareFileForOcrSpace($absolutePath, $maxBytes);
+        $fileType = $this->resolveOcrSpaceFileType($uploadPath);
+        $uploadName = $this->resolveOcrUploadName($uploadPath, $absolutePath, $fileType);
         $handle = fopen($uploadPath, 'r');
 
         if ($handle === false) {
@@ -105,10 +107,11 @@ class ReceiptOcrService
 
         try {
             $response = Http::timeout(60)
-                ->attach('file', $handle, basename($uploadPath))
+                ->attach('file', $handle, $uploadName)
                 ->post($endpoint, [
                     'apikey' => $apiKey,
                     'language' => $language,
+                    'filetype' => $fileType,
                     'isOverlayRequired' => 'false',
                     'OCREngine' => '2',
                 ]);
@@ -227,6 +230,40 @@ class ReceiptOcrService
                 @unlink($tempPath);
             },
         ];
+    }
+
+    private function resolveOcrSpaceFileType(string $path): string
+    {
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'jpg', 'jpeg' => 'JPG',
+            'png' => 'PNG',
+            'pdf' => 'PDF',
+            'tif', 'tiff' => 'TIF',
+            'bmp' => 'BMP',
+            'gif' => 'GIF',
+            'webp' => 'JPG',
+            default => 'JPG',
+        };
+    }
+
+    private function resolveOcrUploadName(string $uploadPath, string $absolutePath, string $fileType): string
+    {
+        $originalBaseName = pathinfo($absolutePath, PATHINFO_FILENAME);
+
+        if ($originalBaseName === '') {
+            $originalBaseName = 'receipt';
+        }
+
+        $desiredExtension = strtolower($fileType === 'JPG' ? 'jpg' : $fileType);
+        $currentExtension = strtolower(pathinfo($uploadPath, PATHINFO_EXTENSION));
+
+        if ($currentExtension !== '') {
+            return basename($uploadPath);
+        }
+
+        return $originalBaseName.'.'.$desiredExtension;
     }
 
     private function resolveTesseractBinary(): string
