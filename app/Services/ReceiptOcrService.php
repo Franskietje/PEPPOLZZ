@@ -16,11 +16,14 @@ class ReceiptOcrService
         $disk = strtolower((string) env('FILESYSTEM_DISK', 'local'));
         
         if ($disk === 's3') {
-            // For S3, download to temp location
+            // For S3, download to temp location with original extension
             if (!Storage::disk('s3')->exists($receipt->original_file_path)) {
                 throw new RuntimeException('Receipt file not found.');
             }
+            $extension = pathinfo($receipt->original_file_path, PATHINFO_EXTENSION);
             $tempPath = tempnam(sys_get_temp_dir(), 'receipt_ocr_');
+            // Add extension to temp file so pathinfo() works later
+            $tempPath = $tempPath . '.' . $extension;
             file_put_contents($tempPath, Storage::disk('s3')->get($receipt->original_file_path));
             $absolutePath = $tempPath;
             $cleanup = static function () use ($tempPath): void {
