@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Web\CompanyController;
 use App\Http\Controllers\Web\ContactController;
 use App\Http\Controllers\Web\DashboardController;
@@ -9,6 +10,16 @@ use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\ReceiptController;
 use Illuminate\Support\Facades\Route;
 
+Route::middleware('guest')->group(function (): void {
+	Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+	Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+});
+
+Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
+	->middleware('auth')
+	->name('logout');
+
+Route::middleware('auth')->group(function (): void {
 Route::get('/', DashboardController::class)->name('web.dashboard');
 
 Route::get('/company', [CompanyController::class, 'edit'])->name('web.company.edit');
@@ -55,3 +66,4 @@ Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->nam
 Route::post('/invoices/{invoice}/lines', [InvoiceController::class, 'addLine'])->name('web.invoices.lines.add');
 Route::delete('/invoices/{invoice}/lines/{line}', [InvoiceController::class, 'deleteLine'])->name('web.invoices.lines.delete');
 Route::post('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->name('web.invoices.mark-paid');
+});

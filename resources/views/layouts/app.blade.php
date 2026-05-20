@@ -139,6 +139,12 @@
             border: 1px solid rgba(255, 255, 255, 0.06);
             transition: .18s ease;
         }
+        .button-link {
+            background: transparent;
+            cursor: pointer;
+            font-family: inherit;
+            line-height: inherit;
+        }
         .nav-link:hover {
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(184, 134, 91, 0.36);
@@ -149,6 +155,9 @@
             border-color: rgba(184, 134, 91, 0.54);
             color: var(--white);
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+        .nav-links form {
+            margin: 0;
         }
         main {
             max-width: 1220px;
@@ -469,6 +478,10 @@
             <a class="nav-link {{ request()->routeIs('web.contacts.*') ? 'active' : '' }}" href="{{ route('web.contacts.index') }}">Contacts</a>
             <a class="nav-link {{ request()->routeIs('web.products.*') ? 'active' : '' }}" href="{{ route('web.products.index') }}">Products</a>
             <a class="nav-link {{ request()->routeIs('web.company.*') ? 'active' : '' }}" href="{{ route('web.company.edit') }}">Company</a>
+            <form method="post" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="nav-link button-link">Log out</button>
+            </form>
         </div>
     </nav>
 </header>
