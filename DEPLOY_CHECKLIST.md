@@ -61,11 +61,14 @@ After first deploy, run:
 ```bash
 php artisan key:generate --force
 php artisan migrate --force
+php artisan user:upsert your@email.com "Your Name"
 php artisan storage:link
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 ```
+
+When you run `php artisan user:upsert`, Laravel will prompt you for the password securely and create the login if it does not exist yet.
 
 ## 5) Ensure queue worker is running
 
