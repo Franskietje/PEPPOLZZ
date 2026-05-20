@@ -91,7 +91,15 @@ class InvoiceController extends Controller
             ], 422);
         }
 
-        $invoice->delete();
+        DB::transaction(function () use ($invoice): void {
+            $company = Company::lockForUpdate()->find($invoice->company_id);
+
+            if ($company) {
+                $company->releaseInvoiceNumber($invoice->invoice_number);
+            }
+
+            $invoice->delete();
+        });
 
         return response()->json(['deleted' => true]);
     }

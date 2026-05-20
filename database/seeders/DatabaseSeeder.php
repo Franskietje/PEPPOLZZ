@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'hello@example.test',
             'iban' => 'BE68539007547034',
             'bic' => 'BBRUBEBB',
-            'invoice_number_prefix' => 'INV',
+            'invoice_number_prefix' => 'FRA',
             'next_invoice_number' => 1,
         ]);
 

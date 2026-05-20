@@ -17,7 +17,7 @@ class CompanyController extends Controller
         ], [
             'country_code' => 'BE',
             'default_currency' => 'EUR',
-            'invoice_number_prefix' => 'INV',
+            'invoice_number_prefix' => 'FRA',
             'next_invoice_number' => 1,
         ]);
 
@@ -49,6 +49,7 @@ class CompanyController extends Controller
 
         $data['country_code'] = strtoupper($data['country_code']);
         $data['default_currency'] = strtoupper($data['default_currency']);
+        $data['invoice_number_prefix'] = strtoupper(trim($data['invoice_number_prefix']));
         $data['vat_number'] = $this->normalizeNullable($data['vat_number'] ?? null);
         $data['enterprise_number'] = $this->normalizeNullable($data['enterprise_number'] ?? null);
         $data['iban'] = $this->normalizeIban($data['iban'] ?? null);

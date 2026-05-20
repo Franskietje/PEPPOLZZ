@@ -19,9 +19,38 @@ class Company extends Model
 
     public function reserveNextInvoiceNumber(): string
     {
-        $number = sprintf('%s-%04d', $this->invoice_number_prefix, $this->next_invoice_number);
-        $this->increment('next_invoice_number');
+        $prefix = strtoupper(trim((string) $this->invoice_number_prefix));
+        $nextNumber = max(1, (int) $this->next_invoice_number);
+
+        while ($this->invoices()->where('invoice_number', sprintf('%s-%04d', $prefix, $nextNumber))->exists()) {
+            $nextNumber++;
+        }
+
+        $number = sprintf('%s-%04d', $prefix, $nextNumber);
+
+        $this->forceFill([
+            'invoice_number_prefix' => $prefix,
+            'next_invoice_number' => $nextNumber + 1,
+        ])->save();
 
         return $number;
+    }
+
+    public function releaseInvoiceNumber(string $invoiceNumber): void
+    {
+        $prefix = strtoupper(trim((string) $this->invoice_number_prefix));
+
+        if (! preg_match('/^'.preg_quote($prefix, '/').'-([0-9]+)$/', $invoiceNumber, $matches)) {
+            return;
+        }
+
+        $releasedNumber = (int) $matches[1];
+
+        if ($releasedNumber < 1) {
+            return;
+        }
+
+        $this->next_invoice_number = min((int) $this->next_invoice_number, $releasedNumber);
+        $this->save();
     }
 }
