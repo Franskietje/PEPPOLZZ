@@ -23,22 +23,12 @@ class ReceiptController extends Controller
 
     public function create(): View
     {
-        return view('receipts.create', [
-            'suppliers' => Contact::whereIn('type', ['supplier', 'both'])->orderBy('name')->get(),
-        ]);
+        return view('receipts.create');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ReceiptOcrService $ocr): RedirectResponse
     {
         $data = $request->validate([
-            'supplier_id' => ['nullable', 'exists:contacts,id'],
-            'receipt_date' => ['nullable', 'date'],
-            'category' => ['nullable', 'string', 'max:100'],
-            'currency' => ['required', 'string', 'size:3'],
-            'subtotal_ex_vat' => ['nullable', 'numeric', 'min:0'],
-            'total_vat' => ['nullable', 'numeric', 'min:0'],
-            'total_inc_vat' => ['required', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string'],
             'receipt_file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
         ]);
 
@@ -47,21 +37,30 @@ class ReceiptController extends Controller
         $path = $file->store('receipts', 's3');
 
         $receipt = Receipt::create([
-            'supplier_id' => $data['supplier_id'] ?? null,
-            'receipt_date' => $data['receipt_date'] ?? null,
-            'category' => $data['category'] ?? null,
-            'currency' => strtoupper($data['currency']),
-            'subtotal_ex_vat' => $data['subtotal_ex_vat'] ?? 0,
-            'total_vat' => $data['total_vat'] ?? 0,
-            'total_inc_vat' => $data['total_inc_vat'],
             'status' => 'needs_review',
             'original_file_path' => $path,
             'original_file_name' => $file->getClientOriginalName(),
             'mime_type' => $file->getMimeType(),
-            'notes' => $data['notes'] ?? null,
         ]);
 
-        return redirect()->route('web.receipts.show', $receipt)->with('success', 'Receipt uploaded.');
+        try {
+            $ocr->process($receipt);
+        } catch (\Throwable $e) {
+            $receipt->update([
+                'ocr_status' => 'failed',
+                'ocr_data' => [
+                    'error' => $e->getMessage(),
+                ],
+                'ocr_processed_at' => now(),
+            ]);
+
+            return redirect()
+                ->route('web.receipts.show', $receipt)
+                ->with('success', 'Receipt uploaded. OCR failed, please fill in the fields manually.')
+                ->withErrors(['ocr' => $e->getMessage()]);
+        }
+
+        return redirect()->route('web.receipts.show', $receipt)->with('success', 'Receipt uploaded. OCR suggestions are ready for review.');
     }
 
     public function show(Receipt $receipt): View

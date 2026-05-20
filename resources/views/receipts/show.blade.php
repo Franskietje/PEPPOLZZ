@@ -8,7 +8,7 @@
 
             <form method="post" action="{{ route('web.receipts.ocr', $receipt) }}">
                 @csrf
-                <button type="submit" class="secondary">Run OCR</button>
+                <button type="submit" class="secondary">{{ $receipt->ocr_status === 'not_processed' ? 'Run OCR' : 'Run OCR again' }}</button>
             </form>
             @if ($receipt->ocr_status === 'processed')
                 <form method="post" action="{{ route('web.receipts.apply-ocr', $receipt) }}">
@@ -48,6 +48,42 @@
         <p class="muted">No inline preview available for this file type.</p>
     @endif
 </div>
+@if ($receipt->ocr_status !== 'not_processed')
+<div class="card">
+    <h2>OCR result</h2>
+    <p class="muted">
+        Status: <span class="status-badge status-{{ $receipt->ocr_status }}">{{ str_replace('_', ' ', $receipt->ocr_status) }}</span>
+        @if ($receipt->ocr_processed_at)
+            · Processed: {{ $receipt->ocr_processed_at->format('Y-m-d H:i') }}
+        @endif
+    </p>
+
+    @if ($receipt->ocr_data)
+        <h3>Suggestions</h3>
+        <p class="muted">Review these OCR suggestions first, then fill in the fields below.</p>
+        <table>
+            <tr><th>Date</th><td>{{ $receipt->ocr_data['date'] ?? 'No guess' }}</td></tr>
+            <tr><th>Total inc VAT</th><td>{{ isset($receipt->ocr_data['total_inc_vat']) ? '€ ' . number_format((float) $receipt->ocr_data['total_inc_vat'], 2, ',', '.') : 'No guess' }}</td></tr>
+            <tr><th>Total VAT</th><td>{{ isset($receipt->ocr_data['total_vat']) ? '€ ' . number_format((float) $receipt->ocr_data['total_vat'], 2, ',', '.') : 'No guess' }}</td></tr>
+            @if (!empty($receipt->ocr_data['error']))
+                <tr><th>Error</th><td>{{ $receipt->ocr_data['error'] }}</td></tr>
+            @endif
+        </table>
+    @endif
+
+    @if ($receipt->ocr_text)
+        <h3>Raw OCR text</h3>
+        <textarea rows="14" readonly>{{ $receipt->ocr_text }}</textarea>
+    @endif
+</div>
+@else
+<div class="card">
+    <h2>OCR step</h2>
+    <p class="muted">Run OCR first. After OCR suggestions are shown, you can fill in the receipt fields.</p>
+</div>
+@endif
+
+@if ($receipt->ocr_status !== 'not_processed')
 <div class="card">
     <h2>Receipt details</h2>
 
@@ -100,34 +136,6 @@
             <button type="submit">Save receipt</button>
         @endif
     </form>
-</div>
-@if ($receipt->ocr_status !== 'not_processed')
-<div class="card">
-    <h2>OCR result</h2>
-    <p class="muted">
-        Status: <span class="status-badge status-{{ $receipt->ocr_status }}">{{ str_replace('_', ' ', $receipt->ocr_status) }}</span>
-        @if ($receipt->ocr_processed_at)
-            · Processed: {{ $receipt->ocr_processed_at->format('Y-m-d H:i') }}
-        @endif
-    </p>
-
-    @if ($receipt->ocr_data)
-        <h3>Suggestions</h3>
-        <p class="muted">Click Apply OCR suggestions above to copy these into the review form, then verify them manually.</p>
-        <table>
-            <tr><th>Date</th><td>{{ $receipt->ocr_data['date'] ?? 'No guess' }}</td></tr>
-            <tr><th>Total inc VAT</th><td>{{ isset($receipt->ocr_data['total_inc_vat']) ? '€ ' . number_format((float) $receipt->ocr_data['total_inc_vat'], 2, ',', '.') : 'No guess' }}</td></tr>
-            <tr><th>Total VAT</th><td>{{ isset($receipt->ocr_data['total_vat']) ? '€ ' . number_format((float) $receipt->ocr_data['total_vat'], 2, ',', '.') : 'No guess' }}</td></tr>
-            @if (!empty($receipt->ocr_data['error']))
-                <tr><th>Error</th><td>{{ $receipt->ocr_data['error'] }}</td></tr>
-            @endif
-        </table>
-    @endif
-
-    @if ($receipt->ocr_text)
-        <h3>Raw OCR text</h3>
-        <textarea rows="14" readonly>{{ $receipt->ocr_text }}</textarea>
-    @endif
 </div>
 @endif
 @endsection
