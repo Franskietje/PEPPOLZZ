@@ -20,11 +20,7 @@ class Company extends Model
     public function reserveNextInvoiceNumber(): string
     {
         $prefix = strtoupper(trim((string) $this->invoice_number_prefix));
-        $nextNumber = max(1, (int) $this->next_invoice_number);
-
-        while ($this->invoices()->where('invoice_number', sprintf('%s-%04d', $prefix, $nextNumber))->exists()) {
-            $nextNumber++;
-        }
+        $nextNumber = $this->nextAvailableInvoiceNumber($prefix);
 
         $number = sprintf('%s-%04d', $prefix, $nextNumber);
 
@@ -34,6 +30,35 @@ class Company extends Model
         ])->save();
 
         return $number;
+    }
+
+    private function nextAvailableInvoiceNumber(string $prefix): int
+    {
+        $usedNumbers = $this->invoices()
+            ->where('invoice_number', 'like', $prefix.'-%')
+            ->pluck('invoice_number')
+            ->map(function (string $invoiceNumber) use ($prefix): ?int {
+                if (! preg_match('/^'.preg_quote($prefix, '/').'-([0-9]+)$/', $invoiceNumber, $matches)) {
+                    return null;
+                }
+
+                return (int) $matches[1];
+            })
+            ->filter(fn (?int $number): bool => $number !== null && $number > 0)
+            ->sort()
+            ->values();
+
+        $candidate = 1;
+
+        foreach ($usedNumbers as $usedNumber) {
+            if ($usedNumber !== $candidate) {
+                break;
+            }
+
+            $candidate++;
+        }
+
+        return $candidate;
     }
 
     public function releaseInvoiceNumber(string $invoiceNumber): void
