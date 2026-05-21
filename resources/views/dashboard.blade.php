@@ -20,6 +20,20 @@
                 <a class="button secondary" href="{{ route('web.products.create') }}">Add product</a>
                 <a class="button secondary" href="{{ route('web.company.edit') }}">Company settings</a>
             </div>
+            <hr style="border: 0; border-top: 1px solid rgba(13, 27, 42, 0.12); margin: 16px 0;">
+            <div class="page-eyebrow" style="margin-bottom: 10px;">Period Export</div>
+            <form method="post" action="{{ route('web.exports.period') }}">
+                @csrf
+                <div class="field">
+                    <label for="start_date">From</label>
+                    <input id="start_date" name="start_date" type="date" value="{{ old('start_date') }}" required>
+                </div>
+                <div class="field">
+                    <label for="end_date">To</label>
+                    <input id="end_date" name="end_date" type="date" value="{{ old('end_date') }}" required>
+                </div>
+                <button class="button secondary" type="submit">Export ZIP</button>
+            </form>
         </div>
     </div>
 </div>

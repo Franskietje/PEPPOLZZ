@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\ContactController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\IncomingInvoiceController;
 use App\Http\Controllers\Web\InvoiceController;
+use App\Http\Controllers\Web\PeriodExportController;
 use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\ReceiptController;
 use Illuminate\Support\Facades\Route;
@@ -59,6 +60,7 @@ Route::post('/incoming-invoices/{incomingInvoice}/reject', [IncomingInvoiceContr
 Route::get('/invoices', [InvoiceController::class, 'index'])->name('web.invoices.index');
 Route::get('/invoices/create', [InvoiceController::class, 'create'])->name('web.invoices.create');
 Route::post('/invoices', [InvoiceController::class, 'store'])->name('web.invoices.store');
+Route::post('/exports/period', PeriodExportController::class)->name('web.exports.period');
 Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('web.invoices.pdf');
 Route::get('/invoices/{invoice}/ubl', [InvoiceController::class, 'downloadUbl'])->name('web.invoices.ubl');
 Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('web.invoices.show');
